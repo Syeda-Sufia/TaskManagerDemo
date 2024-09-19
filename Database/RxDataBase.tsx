@@ -1,48 +1,59 @@
 import { addRxPlugin, createRxDatabase } from 'rxdb';
 import { RxDBDevModePlugin } from 'rxdb/plugins/dev-mode';
 import { getRxStorageMemory } from 'rxdb/plugins/storage-memory';
+import { RxDBMigrationPlugin } from 'rxdb/plugins/migration-schema';
+import { RxDBQueryBuilderPlugin } from 'rxdb/plugins/query-builder';
+import { RxDBUpdatePlugin } from 'rxdb/plugins/update';
 
-import {TaskSchema} from './Schema';
-import { timestamp } from 'rxjs';
+addRxPlugin(RxDBMigrationPlugin);
+addRxPlugin(RxDBUpdatePlugin);
+addRxPlugin(RxDBQueryBuilderPlugin);
 
-export const STORAGE=getRxStorageMemory();
+import { TodoSchema } from './TodoSchema.ts';
+export const STORAGE = getRxStorageMemory();
+const dbName = 'todosreactdatabase';
+export const todoCollectionName = 'todo';
 
-addRxPlugin(RxDBDevModePlugin);
+const isDevelopment =
+  process.env.NODE_ENV !== 'production' || process.env.DEBUG_PROD === 'true';
 
-let myDataBase:any;
+const initializeDB = async () => {
+  if (isDevelopment) {
+    addRxPlugin(RxDBDevModePlugin);
+  }
 
-const initializeDB=async()=> {
-try {
- const myDataBase=await createRxDatabase({
-    name: 'mydatabase',
-    ignoreDuplicate: true,
-    storage: STORAGE,
- });
-}
-catch (err){
-    console.log('ERROR CREATING DATABASE', err);
-}
+  let db: any;
 
-try{
-    await myDataBase.addCollections({
-        tasks:{
-            schema: TaskSchema,
-        }
+  try {
+    db = await createRxDatabase({
+      name: dbName,
+      storage: STORAGE,
+      multiInstance: false,
+      ignoreDuplicate: true,
     });
+  } catch (err) {
+    console.log('ERROR CREATING DATABASE', err);
+  }
 
-}
-catch(err){
-    console.log("ERROR CREATING DATABASE",err);
-}
-const myDocument= await myDataBase.tasks.insert({
-    id: 'Task1',
-    name: 'Learn RxDB',
-    done: false,
-    timestamp: new Date().toISOString()
-});
+  try {
+    await db.addCollections({
+      [todoCollectionName]: {
+        schema: TodoSchema,
+      },
+    });
+  } catch (err) {
+    console.log('ERROR CREATING COLLECTION', err);
+  }
 
-return myDataBase;
+  // await db[todoCollectionName].insert({
+  //   id: `${Date.now()}`,
+  //   title: 'Antibiotics',
+  //   description: 'Bring Medicine from store',
+  //   done: 'true',
+ // });
 
-}
+  return db;
+};
+
 export default initializeDB;
 
